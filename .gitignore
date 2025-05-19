@@ -11,6 +11,8 @@ EDA_summary/*
 Backtesting/*
 !Backtesting/*.py
 !data/*.py
+model/baseline.py
+
 
 # C extensions
 *.so
