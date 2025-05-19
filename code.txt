@@ -1,0 +1,23 @@
+conda activate vision_pytorch
+cd C:\Users\user\Desktop\Multimodal(TVD)
+
+-- Our model--
+python ./model/cross_attention/MM_cross_attention.py --batch_size 32 --epochs 30
+python ./model/self_attention/MM_self_attention.py --batch_size 32 --epochs 30
+
+--Our model (ablation)--
+[Cross Attention]
+python ./model/cross_attention/MM_cross_individual.py --batch_size 32 --epochs 30
+python ./model/cross_attention/MM_cross_exclude.py --batch_size 32 --epochs 30
+
+python ./model/cross_attention/MM_cross_exclude.py --batch_size 32 --epochs 10
+
+
+
+[Self Attention]
+python ./model/self_attention/MM_LSTM_only.py --batch_size 32 --epochs 30
+python ./model/self_attention/MM_ViT_only.py --batch_size 32 --epochs 30
+
+
+--baseline--
+python ./model/baseline.py --batch_size 32 --epochs 30 --spipequence_length 60
