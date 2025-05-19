@@ -85,3 +85,6 @@ python run.py \
 |                   | Only IMG     | 109.133 (18.803)   | 0.519             | 1.059 (0.204)    | 1.111 (0.254)          | 15.93      |
 
 **Note:** †Up & down labeling, ‡Trend labeling; **THE BEST RESULTS FOR EACH INDICATOR ARE HIGHLIGHTED IN BOLD**
+
+#### trading plot
+![Img sample](./assets/Fig11.png)
