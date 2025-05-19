@@ -83,4 +83,5 @@ python run.py \
 |                   | **ALL**      | 93.1 (16.647)      | 0.512             | 1.053 (0.238)    | 1.129 (0.298)          | 18.902     |
 | **Self**          | Only TI      | 72.233 (53.595)    | 0.519             | **1.187** (0.384)| **1.298** (0.464)      | **27.054** |
 |                   | Only IMG     | 109.133 (18.803)   | 0.519             | 1.059 (0.204)    | 1.111 (0.254)          | 15.93      |
+
 **Note:** †Up & down labeling, ‡Trend labeling; **THE BEST RESULTS FOR EACH INDICATOR ARE HIGHLIGHTED IN BOLD**, and the next best are __underlined__
