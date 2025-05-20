@@ -58,6 +58,14 @@ python run.py \
 ![Img sample](./assets/Fig1.png)
 ![Img sample](./assets/Fig3.png)
 
+## 📊 Multimodal-TVD Execution
+### data
+![Img sample](./assets/Fig1.png)
+![Img sample](./assets/Fig3.png)
+
+- **Experimental period** 2010.06-2023.12.31
+- **Test(Trading)** 2021.01.01-2023.12.31
+
 ## 📈 Backtesting 📉
 #### trading metric (mean, std)
 - **PR : payoff ratio**
