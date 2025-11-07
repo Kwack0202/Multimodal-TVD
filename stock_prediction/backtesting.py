@@ -59,8 +59,7 @@ class Backtesting:
                     px_tail   = df_px.iloc[-tail_n:][needed_cols].copy().reset_index(drop=True)
                     preds_tail= df_pred.iloc[-tail_n:].copy().reset_index(drop=True)
 
-                    # 임계값 = Predicted 평균 → 이진화
-                    thr = float(preds_tail["Predicted"].median())
+                    thr = 0.5
                     preds_bin = (preds_tail["Predicted"] >= thr).astype(int)
 
                     # 출력 조립
