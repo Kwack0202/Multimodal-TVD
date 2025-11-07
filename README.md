@@ -2,18 +2,18 @@
 Multimodal learning model for stock trading using technical-visual data
 
 ## Concept of proposed trading system
-![Concept Diagram](./assets/Fig4.png)
+![Concept Diagram](./asset/Fig4.png)
 
 - **Numeric Modal** : Technical indicator (Momentum)
 - **Visual Modal** : Candlestick chart images 
 
 **Multimodal trading system - TVD**
-![Cum full](./assets/Fig6.png)
-![Cum full](./assets/Fig7.png)
+![Cum full](./asset/Fig6.png)
+![Cum full](./asset/Fig7.png)
 
 **Multimodal Fusion method**
-![Cum full](./assets/Fig8.png)
-![Cum full](./assets/Fig9.png)
+![Cum full](./asset/Fig8.png)
+![Cum full](./asset/Fig9.png)
 
 ## 🛠 System
 - **CPU** `AMD Ryzen 9 5950X 16-Core Processor`
@@ -57,12 +57,12 @@ python run.py \
 
 ## 📊 Multimodal-TVD Execution
 ### data
-![Img sample](./assets/Fig1.png)
-![Img sample](./assets/Fig2.png)
+![Img sample](./asset/Fig1.png)
+![Img sample](./asset/Fig2.png)
 
 
 ## 📈 Backtesting 📉
-![Img sample](./assets/Fig10.png)
+![Img sample](./asset/Fig10.png)
 
 #### trading metric (mean, std)
 - **PR : payoff ratio**
@@ -96,8 +96,8 @@ python run.py \
 
 
 #### trading plot
-![Img sample](./assets/Fig13.png)
+![Img sample](./asset/Fig13.png)
 
 #### XAI
-![Img sample](./assets/Fig17.png)
-![Img sample](./assets/Fig18.png)
+![Img sample](./asset/Fig17.png)
+![Img sample](./asset/Fig18.png)
