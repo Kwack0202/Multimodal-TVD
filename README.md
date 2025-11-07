@@ -12,7 +12,7 @@ Multimodal learning model for stock trading using technical-visual data
 - **GPU** `NVIDIA GeForce RTX 4080`
 - **Memory RAM** `128GB`
 
-**The computational efficiency of PAST is proportional to the CPU's power(Logical processor)**
+**The computational efficiency of Multimodal-TVD is proportional to the CPU's power(Logical processor)**
 
 ## 📑 Usage
 ### Requirments
