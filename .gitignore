@@ -7,11 +7,9 @@ backup/
 Backtesting/
 
 data/**
-!data/
-!data/data_preprocessing.py  # 이 파일만 포함
+!data/data_preprocessing.py 
 
 stock_prediction/**
-!stock_prediction/
 !stock_prediction/backtesting.py
 !stock_prediction/model/**
 !stock_prediction/model/

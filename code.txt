@@ -1,0 +1,26 @@
+conda activate vision_pytorch
+cd C:\Users\user\Desktop\Multimodal(TVD)
+
+-- Our model--
+[Cross Attention]
+python ./stock_prediction/model/cross_attention/MM_cross_attention.py --batch_size 32 --epochs 30
+
+[Self Attention]
+python ./stock_prediction/model/self_attention/MM_self_attention.py --batch_size 32 --epochs 30
+
+
+--Our model (ablation)--
+[Cross Attention]
+python ./stock_prediction/model/cross_attention/MM_cross_individual.py --batch_size 32 --epochs 10
+python ./stock_prediction/model/cross_attention/MM_cross_exclude.py --batch_size 32 --epochs 10
+
+[Self Attention]
+python ./stock_prediction/model/self_attention/MM_unimodal.py --batch_size 32 --epochs 10
+
+
+
+--baseline--
+python ./model/baseline.py --batch_size 32 --epochs 30 --spipequence_length 60
+
+==AttVis==
+python ./stock_prediction/model/cross_attention/MM_cross_attention_AttVis.py --sample_mode test
