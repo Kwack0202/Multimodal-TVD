@@ -11,9 +11,7 @@ import argparse
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
-# =========================
-# Dataset (활성 윈도우만 로딩)
-# =========================
+
 class MultiStockDataset(Dataset):
     def __init__(self, csv_path, img_base_path, transform=None,
                  window_sizes=[5,20,60], label_col='Signal_origin',
@@ -28,13 +26,12 @@ class MultiStockDataset(Dataset):
         exclude_cols = ['Date', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Signal_origin', 'Signal_trend']
         self.ta_cols = [c for c in self.csv_data.columns if c not in exclude_cols]
 
-        # 간단 전처리(기존 로직 유지)
         self.csv_data[self.ta_cols] = self.csv_data[self.ta_cols].fillna(0)
         self.csv_data[self.ta_cols] = self.csv_data[self.ta_cols].replace([np.inf, -np.inf], 0)
         scaler = StandardScaler()
         self.csv_data[self.ta_cols] = scaler.fit_transform(self.csv_data[self.ta_cols])
 
-        # 인덱스 매핑 (CSV 119 ↔ 이미지 0.png)
+        # 인덱스 매핑
         self.csv_offset = 119
         self.all_indices = list(range(len(self.csv_data) - self.csv_offset))
 
@@ -62,18 +59,13 @@ class MultiStockDataset(Dataset):
         label = torch.tensor(self.csv_data[self.label_col].iloc[csv_idx], dtype=torch.float)
         return ta_dict, img_dict, label
 
-# =========================
-# Transform (320x320, ViT 호환)
-# =========================
 transform = transforms.Compose([
     transforms.Resize((320, 320)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
 ])
 
-# =========================
-# Model (선택된 윈도우만 사용)
-# =========================
+
 class StockPredictor(nn.Module):
     def __init__(self, windows=[5,20,60], input_size=25, hidden_unit=256, num_layers=4,
                  num_attention_heads=16, intermediate_size=512, dropout_prob=0.5,
@@ -92,7 +84,7 @@ class StockPredictor(nn.Module):
         self.mhal_num_heads = mhal_num_heads
         self.mlp_hidden_unit = mlp_hidden_unit
 
-        # LSTM per window
+        # LSTM 
         self.lstm_dict = nn.ModuleDict({
             s: nn.LSTM(input_size=self.input_size, hidden_size=self.hidden_unit,
                        num_layers=self.num_layers, batch_first=True, dropout=self.dropout_prob)
@@ -100,7 +92,7 @@ class StockPredictor(nn.Module):
         })
         self.fc_ts = nn.Linear(self.hidden_unit, self.hidden_unit)
 
-        # ViT per window (320/16=20 → 400 patches)
+        # ViT 
         vit_cfg = ViTConfig(
             hidden_size=self.hidden_unit, num_hidden_layers=self.num_layers,
             num_attention_heads=self.num_attention_heads, intermediate_size=self.intermediate_size,
@@ -108,13 +100,13 @@ class StockPredictor(nn.Module):
         )
         self.vit_dict = nn.ModuleDict({ s: ViTModel(vit_cfg) for s in self.wstr })
 
-        # Cross-Attn: Q=TA_last(1), K/V=ViT patches(P)
+        # Cross-Attn
         self.cross_attn = nn.MultiheadAttention(
             embed_dim=self.hidden_unit, num_heads=self.mhal_num_heads,
             dropout=self.dropout_prob, batch_first=True
         )
 
-        # MLP: concat over |W|
+        # MLP
         self.fc1 = nn.Linear(self.hidden_unit * len(self.windows), self.mlp_hidden_unit)
         self.bn1 = nn.BatchNorm1d(self.mlp_hidden_unit)
         self.fc2 = nn.Linear(self.mlp_hidden_unit, 1)
@@ -124,11 +116,9 @@ class StockPredictor(nn.Module):
     def forward(self, ta_dict, img_dict):
         fused = []
         for s in self.wstr:
-            # TA → 마지막 스텝
             ta_seq, _ = self.lstm_dict[s](ta_dict[s])         # (B,T,H)
             q = self.fc_ts(ta_seq[:, -1, :]).unsqueeze(1)     # (B,1,H)
 
-            # ViT → 패치
             vit_out = self.vit_dict[s](img_dict[s])
             kv = vit_out.last_hidden_state[:, 1:, :]          # (B,P,H)
 
@@ -153,7 +143,7 @@ class StockPredictor(nn.Module):
         return head + tail
 
 # =========================
-# Train / Test (간단 버전)
+# Train / Test 
 # =========================
 def train_model(model, train_loader, criterion, optimizer, num_epochs, device):
     model.train()
@@ -209,7 +199,7 @@ def test_model(model, test_loader, criterion, device):
     return results
 
 # =========================
-# Main: Exclude Ablation (4회)
+# Exclude Ablation 
 # =========================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Exclude-window ablation (use remaining 3 windows)')

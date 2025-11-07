@@ -11,7 +11,7 @@ data/**
 
 stock_prediction/**
 !stock_prediction/backtesting.py
-!stock_prediction/model/**
+stock_prediction/model/backup
 !stock_prediction/model/
 
 basic.ipynb

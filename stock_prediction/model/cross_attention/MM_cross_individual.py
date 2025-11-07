@@ -11,9 +11,6 @@ import argparse
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
-# =========================
-# 데이터셋 클래스 (활성 윈도우만 로딩)
-# =========================
 class MultiStockDataset(Dataset):
     def __init__(self, csv_path, img_base_path, transform=None,
                  window_sizes=[5], label_col='Signal_origin',
@@ -21,20 +18,19 @@ class MultiStockDataset(Dataset):
         self.csv_data = pd.read_csv(csv_path)
         self.img_base_path = img_base_path
         self.transform = transform
-        self.window_sizes = window_sizes  # <- 활성 윈도우만 사용
+        self.window_sizes = window_sizes 
         self.label_col = label_col
         self.mode = mode
 
         exclude_cols = ['Date', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Signal_origin', 'Signal_trend']
         self.ta_cols = [col for col in self.csv_data.columns if col not in exclude_cols]
 
-        # 간단 전처리 (기존 로직 유지)
         self.csv_data[self.ta_cols] = self.csv_data[self.ta_cols].fillna(0)
         self.csv_data[self.ta_cols] = self.csv_data[self.ta_cols].replace([np.inf, -np.inf], 0)
         scaler = StandardScaler()
         self.csv_data[self.ta_cols] = scaler.fit_transform(self.csv_data[self.ta_cols])
 
-        # 인덱스 매핑 (CSV 119 ↔ 이미지 0.png)
+        # 인덱스 매핑 
         self.csv_offset = 119
         self.all_indices = list(range(len(self.csv_data) - self.csv_offset))
 
@@ -49,7 +45,7 @@ class MultiStockDataset(Dataset):
         img_idx = self.valid_indices[idx]
         csv_idx = img_idx + self.csv_offset
 
-        # TA 시퀀스(활성 윈도우만)
+        # TA 시퀀스
         ta_dict = {}
         for window in self.window_sizes:
             start_idx = csv_idx - window + 1
@@ -57,7 +53,7 @@ class MultiStockDataset(Dataset):
             ta = torch.tensor(ta, dtype=torch.float)
             ta_dict[str(window)] = ta
 
-        # 이미지(활성 윈도우만)
+        # 이미지
         img_dict = {}
         for window in self.window_sizes:
             img_path = os.path.join(self.img_base_path, str(window), f"{img_idx}.png")
@@ -69,18 +65,12 @@ class MultiStockDataset(Dataset):
         label = torch.tensor(self.csv_data[self.label_col].iloc[csv_idx], dtype=torch.float)
         return ta_dict, img_dict, label
 
-# =========================
-# 이미지 전처리 (ViT 입력용) — 320x320
-# =========================
 transform = transforms.Compose([
     transforms.Resize((320, 320)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-# =========================
-# 모델 (활성 윈도우만 구성)
-# =========================
 class StockPredictor(nn.Module):
     def __init__(self, windows=[5], input_size=25, hidden_unit=256, num_layers=4,
                  num_attention_heads=16, intermediate_size=512, dropout_prob=0.5,
@@ -98,7 +88,7 @@ class StockPredictor(nn.Module):
         self.mhal_num_heads = mhal_num_heads
         self.mlp_hidden_unit = mlp_hidden_unit
 
-        # LSTM (활성 윈도우만)
+        # LSTM 
         self.lstm_dict = nn.ModuleDict({
             w: nn.LSTM(input_size=self.input_size, hidden_size=self.hidden_unit,
                        num_layers=self.num_layers, batch_first=True, dropout=self.dropout_prob)
@@ -106,7 +96,7 @@ class StockPredictor(nn.Module):
         })
         self.fc_ts = nn.Linear(self.hidden_unit, self.hidden_unit)
 
-        # ViT (활성 윈도우만)
+        # ViT
         vit_config = ViTConfig(
             hidden_size=self.hidden_unit,
             num_hidden_layers=self.num_layers,
@@ -120,13 +110,13 @@ class StockPredictor(nn.Module):
             w: ViTModel(vit_config) for w in self.windows_str
         })
 
-        # TA last (Q) vs ViT patches (K,V)
+        # Cross-Attn
         self.cross_attn = nn.MultiheadAttention(
             embed_dim=self.hidden_unit, num_heads=self.mhal_num_heads,
             dropout=self.dropout_prob, batch_first=True
         )
 
-        # 윈도우 개수에 맞춰 MLP 입력 차원 조정
+        # MLP 
         self.fc1 = nn.Linear(self.hidden_unit * len(self.windows), self.mlp_hidden_unit)
         self.bn1 = nn.BatchNorm1d(self.mlp_hidden_unit)
         self.fc2 = nn.Linear(self.mlp_hidden_unit, 1)
@@ -136,20 +126,16 @@ class StockPredictor(nn.Module):
     def forward(self, ta_dict, img_dict):
         fused = []
         for w in self.windows_str:
-            # TA → 마지막 스텝 요약
             ta_seq, _ = self.lstm_dict[w](ta_dict[w])         # (B,T,H)
             q = self.fc_ts(ta_seq[:, -1, :]).unsqueeze(1)     # (B,1,H)
 
-            # ViT → 패치 토큰
             vit_out = self.vit_dict[w](img_dict[w])
             vit_tokens = vit_out.last_hidden_state             # (B,1+P,H)
             kv = vit_tokens[:, 1:, :]                          # (B,P,H)
 
-            # Cross-Attn (Q vs K/V)
             fused_w, _ = self.cross_attn(q, kv, kv)            # (B,1,H)
             fused.append(fused_w.squeeze(1))                   # (B,H)
-
-            # 메모리 관리(선택): vit_out 참조 해제
+            
             del vit_out
 
         z = torch.cat(fused, dim=1)                            # (B, H*|W|)
@@ -170,7 +156,7 @@ class StockPredictor(nn.Module):
         return name
 
 # =========================
-# 학습 함수 (요청한 간단 버전)
+# Train / Test 
 # =========================
 def train_model(model, train_loader, criterion, optimizer, num_epochs, device):
     model.train()
@@ -198,9 +184,6 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs, device):
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
     torch.cuda.empty_cache()
 
-# =========================
-# 테스트 함수 (요청한 간단 버전)
-# =========================
 @torch.no_grad()
 def test_model(model, test_loader, criterion, device):
     model.eval()
@@ -230,7 +213,7 @@ def test_model(model, test_loader, criterion, device):
     return results
 
 # =========================
-# 메인: Ablation (윈도우 하나만 사용하는 4회 실험)
+# Ablation 
 # =========================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Single-window ablation')

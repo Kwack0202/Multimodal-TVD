@@ -16,7 +16,7 @@ from scipy.ndimage import zoom
 import math
 
 # =========================
-# 데이터셋 클래스 (원형 유지)
+# 데이터셋 클래스
 # =========================
 class MultiStockDataset(Dataset):
     def __init__(self, csv_path, img_base_path, transform=None, window_sizes=[5, 20, 60, 120], label_col='Signal_origin', mode='train', train_end_idx=None):
@@ -76,10 +76,6 @@ class MultiStockDataset(Dataset):
         
         return ta_dict, img_dict, label
 
-# =========================
-# 이미지 전처리 (ViT 입력용)
-# =========================
-# UPDATED: 320x320로 변경 (20x20 패치)
 transform = transforms.Compose([
     transforms.Resize((320, 320)),
     transforms.ToTensor(),
@@ -186,45 +182,10 @@ class StockPredictor(nn.Module):
         return model_name
 
 # =========================
-# 평가 함수 (매 에포크 테스트용) — NEW
-# =========================
-@torch.no_grad()
-def evaluate_model(model, loader, criterion, device):
-    model.eval()
-    test_loss = 0.0
-    all_probs, all_labels = [], []
-
-    for ta_dict, img_dict, labels in loader:
-        ta_dict = {k: v.to(device) for k, v in ta_dict.items()}
-        img_dict = {k: v.to(device) for k, v in img_dict.items()}
-        labels = labels.to(device)
-
-        outputs = model(ta_dict, img_dict).squeeze(1)
-        loss = criterion(outputs, labels)
-        test_loss += loss.item()
-
-        probs = torch.sigmoid(outputs)
-        all_probs.append(probs.detach().cpu())
-        all_labels.append(labels.detach().cpu())
-
-    test_loss /= len(loader)
-
-    all_probs = torch.cat(all_probs)           # (N,)
-    all_labels = torch.cat(all_labels).float() # (N,)
-    threshold = all_probs.median()             # 동적 임계값 (출력/로그 X)
-
-    preds = (all_probs > threshold).float()
-    test_acc = 100.0 * (preds == all_labels).float().mean().item()
-
-    return test_loss, test_acc
-
-# =========================
-# 학습 함수 (베스트 모델 저장 포함) — UPDATED
+# Train / Test 
 # =========================
 def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs, device, ckpt_dir):
     os.makedirs(ckpt_dir, exist_ok=True)
-    best_state, best_epoch = None, -1
-    best_acc, best_loss = -1.0, float('inf')
 
     for epoch in tqdm(range(num_epochs)):
         model.train()
@@ -243,37 +204,22 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
 
             running_loss += loss.item()
             probs = torch.sigmoid(outputs)
-            preds = (probs > 0.5).float()  # 학습 로그는 그대로 0.5 사용
+            preds = (probs > 0.5).float()
             total += labels.size(0)
             correct += (preds == labels).sum().item()
 
         train_loss = running_loss / len(train_loader)
         train_acc = 100.0 * correct / total
 
-        # 에포크별 테스트(평균확률 임계값 사용) — evaluate_model이 처리
-        test_loss, test_acc = evaluate_model(model, test_loader, criterion, device)
-
-        # 체크포인트(매 에포크 저장)
-        # torch.save(model.state_dict(), os.path.join(ckpt_dir, f'epoch_{epoch+1}.pth'))
-
-        # ★ Best 선택: Acc 우선, 동률이면 Loss 낮은 모델
-        if (test_acc > best_acc) or (abs(test_acc - best_acc) < 1e-9 and test_loss < best_loss):
-            best_acc, best_loss = test_acc, test_loss
-            best_epoch = epoch + 1
-            best_state = {k: v.cpu() for k, v in model.state_dict().items()}
-            torch.save(best_state, os.path.join(ckpt_dir, 'best.pth'))
-
-        # 로그: Train/Test 손실·정확도만 표시 (Threshold 미표시)
         print(f"Epoch [{epoch+1}/{num_epochs}] "
-              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}% | "
-              f"Test  Loss: {test_loss:.4f}, Test  Acc: {test_acc:.2f}% | "
-              f"Best Acc: {best_acc:.2f}% @ epoch {best_epoch}")
+              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
 
-    return best_epoch
+    # 전체 학습 종료 후 마지막 모델만 저장
+    final_state = {k: v.cpu() for k, v in model.state_dict().items()}
+    torch.save(final_state, os.path.join(ckpt_dir, 'final.pth'))
 
-# =========================
-# 테스트(결과 수집) — UPDATED: 경로 저장 변경
-# =========================
+    print(f"Training complete. Final model saved at {os.path.join(ckpt_dir, 'final.pth')}")
+
 @torch.no_grad()
 def test_model(model, test_loader, criterion, device):
     model.eval()
@@ -289,7 +235,7 @@ def test_model(model, test_loader, criterion, device):
     return results
 
 # =========================
-# 어텐션 + 윈도우 중요도 시각화 — UPDATED
+# Explainable
 # =========================
 def visualize_attention_maps(model, data_loader, device, img_base_path, mode='train', sample_idx=0, save_dir='./stock_prediction/attention_maps'):
     import math
@@ -398,7 +344,7 @@ def visualize_attention_maps(model, data_loader, device, img_base_path, mode='tr
     torch.cuda.empty_cache()
 
 # =========================
-# 메인 (경로 전부 ./stock_prediction/ 하위로 통일) — UPDATED
+# main
 # =========================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Stock prediction model training')
@@ -427,7 +373,7 @@ if __name__ == "__main__":
             train_dataset = MultiStockDataset(csv_path, img_base_path, transform=transform, label_col=label_col, mode='train', train_end_idx=train_end_idx)
             test_dataset = MultiStockDataset(csv_path, img_base_path, transform=transform, label_col=label_col, mode='test', train_end_idx=train_end_idx)
             
-            train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False)  # 원형 유지
+            train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=False) 
             test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
 
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -438,7 +384,6 @@ if __name__ == "__main__":
             criterion = nn.BCEWithLogitsLoss()
             optimizer = torch.optim.RAdam(model.parameters(), lr=2e-4)
 
-            # 체크포인트/결과/시각화 경로 — UPDATED
             base_dir = f'./stock_prediction'
             ckpt_dir = os.path.join(base_dir, 'saved_model', model_name, label_col, ticker)
             pred_dir = os.path.join(base_dir, 'pred_results', model_name, label_col)
@@ -446,13 +391,11 @@ if __name__ == "__main__":
             os.makedirs(pred_dir, exist_ok=True)
             os.makedirs(attn_dir, exist_ok=True)
 
-            # 학습 + 매 에포크 저장 + 베스트 선택 — NEW
-            best_epoch = train_model(model, train_loader, test_loader, criterion, optimizer, args.epochs, device, ckpt_dir)
-            best_ckpt_path = os.path.join(ckpt_dir, 'best.pth')
+            train_model(model, train_loader, test_loader, criterion, optimizer, args.epochs, device, ckpt_dir)
+            final_ckpt_path = os.path.join(ckpt_dir, 'final.pth')
 
-            # 베스트 로드 후 최종 테스트/저장 — UPDATED
             loaded_model = StockPredictor(input_size=len(train_dataset.ta_cols)).to(device)
-            loaded_model.load_state_dict(torch.load(best_ckpt_path, map_location=device))
+            loaded_model.load_state_dict(torch.load(final_ckpt_path, map_location=device))
             results = test_model(loaded_model, test_loader, criterion, device)
 
             results_df = pd.DataFrame(results, columns=['Actual', 'Predicted'])

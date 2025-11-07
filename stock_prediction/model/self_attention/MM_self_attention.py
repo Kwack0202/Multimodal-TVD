@@ -14,7 +14,9 @@ from sklearn.preprocessing import StandardScaler
 import seaborn as sns
 from scipy.ndimage import zoom
 
+# =========================
 # 데이터셋 클래스
+# =========================
 class MultiStockDataset(Dataset):
     def __init__(self, csv_path, img_base_path, transform=None, window_sizes=[5, 20, 60, 120], label_col='Signal_origin', mode='train', train_end_idx=None):
         self.csv_data = pd.read_csv(csv_path)
@@ -73,14 +75,15 @@ class MultiStockDataset(Dataset):
         
         return ta_dict, img_dict, label
 
-# 이미지 전처리 (ViT 입력용) — 320x320
 transform = transforms.Compose([
     transforms.Resize((320, 320)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
+# =========================
 # 모델 클래스
+# =========================
 class StockPredictor(nn.Module):
     def __init__(self, input_size=25, hidden_unit=256, num_layers=4, num_attention_heads=16, intermediate_size=512, dropout_prob=0.5, mhal_num_heads=16, mlp_hidden_unit=512):
         super(StockPredictor, self).__init__()
@@ -94,7 +97,7 @@ class StockPredictor(nn.Module):
         self.mhal_num_heads = mhal_num_heads
         self.mlp_hidden_unit = mlp_hidden_unit
         
-        # LSTM 모듈 (각 윈도우별)
+        # LSTM 모듈
         self.lstm_dict = nn.ModuleDict({
             str(window): nn.LSTM(input_size=self.input_size, 
                                  hidden_size=self.hidden_unit, 
@@ -105,7 +108,7 @@ class StockPredictor(nn.Module):
         })
         self.fc_ts = nn.Linear(self.hidden_unit, self.hidden_unit)
 
-        # ViT 모듈 (각 윈도우별) — image_size=320, patch_size=16
+        # ViT 모듈
         vit_config = ViTConfig(
             hidden_size=self.hidden_unit, 
             num_hidden_layers=self.num_layers, 
@@ -126,7 +129,7 @@ class StockPredictor(nn.Module):
         # 멀티모달 크로스어텐션: Q=TA(4), K/V=IMG(4)
         self.cross_attention = nn.MultiheadAttention(embed_dim=self.hidden_unit, num_heads=self.mhal_num_heads, dropout=self.dropout_prob)
 
-        # 최종 MLP
+        # MLP
         self.fc1 = nn.Linear(self.hidden_unit, self.mlp_hidden_unit)
         self.bn1 = nn.BatchNorm1d(self.mlp_hidden_unit)
         self.fc2 = nn.Linear(self.mlp_hidden_unit, 1)
@@ -134,7 +137,6 @@ class StockPredictor(nn.Module):
         self.relu = nn.ReLU()
 
     def forward(self, ta_dict, img_dict):
-        # 1) TA: 윈도우 4개 → 토큰 4개
         ta_tokens = []
         for window in ['5', '20', '60', '120']:
             ta, _ = self.lstm_dict[window](ta_dict[window])       # (B, T, H)
@@ -143,7 +145,6 @@ class StockPredictor(nn.Module):
         ta_tokens = torch.cat(ta_tokens, dim=0)                   # (4, B, H)
         ta_attn_output, _ = self.ta_attention(ta_tokens, ta_tokens, ta_tokens)   # (4,B,H)
 
-        # 2) IMG: 윈도우별 ViT CLS → 토큰 4개
         img_tokens = []
         for window in ['5', '20', '60', '120']:
             vit_out = self.vit_dict[window](img_dict[window]).last_hidden_state[:, 0, :]  # (B,H)
@@ -151,11 +152,9 @@ class StockPredictor(nn.Module):
         img_tokens = torch.cat(img_tokens, dim=0)                  # (4, B, H)
         img_attn_output, _ = self.img_attention(img_tokens, img_tokens, img_tokens)       # (4,B,H)
 
-        # 3) 모달 간 크로스어텐션 (윈도우×윈도우)
         cross_attn_output, _ = self.cross_attention(ta_attn_output, img_attn_output, img_attn_output)  # (4,B,H)
         cross_attn_output = cross_attn_output.mean(dim=0)          # (B,H)  — 간단 평균(원설계 유지)
 
-        # 4) 최종 MLP
         x = self.fc1(cross_attn_output)
         x = self.bn1(x)
         x = self.relu(x)
@@ -172,43 +171,10 @@ class StockPredictor(nn.Module):
         return model_name
 
 # =========================
-# 에포크 평가(동적 임계값=테스트 평균 확률) — Test Acc/Loss 계산 전용
-# =========================
-@torch.no_grad()
-def evaluate_model(model, loader, criterion, device):
-    model.eval()
-    test_loss = 0.0
-    all_probs, all_labels = [], []
-
-    for ta_dict, img_dict, labels in loader:
-        ta_dict = {k: v.to(device) for k, v in ta_dict.items()}
-        img_dict = {k: v.to(device) for k, v in img_dict.items()}
-        labels = labels.to(device)
-
-        outputs = model(ta_dict, img_dict).squeeze(1)
-        loss = criterion(outputs, labels)
-        test_loss += loss.item()
-
-        probs = torch.sigmoid(outputs)
-        all_probs.append(probs.detach().cpu())
-        all_labels.append(labels.detach().cpu())
-
-    test_loss /= len(loader)
-    all_probs  = torch.cat(all_probs)            # (N,)
-    all_labels = torch.cat(all_labels).float()   # (N,)
-
-    threshold = all_probs.mean()                 # 동적 임계값(로그 출력 X)
-    preds = (all_probs > threshold).float()
-    test_acc = 100.0 * (preds == all_labels).float().mean().item()
-    return test_loss, test_acc
-
-# =========================
-# 학습(매 에포크 테스트 & 체크포인트 & Best by Acc)
+# Train / Test 
 # =========================
 def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs, device, ckpt_dir):
     os.makedirs(ckpt_dir, exist_ok=True)
-    best_state, best_epoch = None, -1
-    best_acc, best_loss = -1.0, float('inf')
 
     for epoch in tqdm(range(num_epochs)):
         model.train()
@@ -227,38 +193,24 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
 
             running_loss += loss.item()
             probs = torch.sigmoid(outputs)
-            preds = (probs > 0.5).float()  # 학습 로깅은 0.5 기준(의미: 진행상태 확인용)
+            preds = (probs > 0.5).float()  # 로깅용
             total += labels.size(0)
             correct += (preds == labels).sum().item()
 
         train_loss = running_loss / len(train_loader)
         train_acc = 100.0 * correct / total
-
-        # 에포크마다 테스트
-        test_loss, test_acc = evaluate_model(model, test_loader, criterion, device)
-
-        # 체크포인트 저장(매 에포크)
-        torch.save(model.state_dict(), os.path.join(ckpt_dir, f'epoch_{epoch+1}.pth'))
-
-        # Best 갱신: Acc 우선, 동률이면 Loss 낮은 모델
-        if (test_acc > best_acc) or (abs(test_acc - best_acc) < 1e-9 and test_loss < best_loss):
-            best_acc, best_loss = test_acc, test_loss
-            best_epoch = epoch + 1
-            best_state = {k: v.cpu() for k, v in model.state_dict().items()}
-            torch.save(best_state, os.path.join(ckpt_dir, 'best.pth'))
-
         print(f"Epoch [{epoch+1}/{num_epochs}] "
-              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}% | "
-              f"Test  Loss: {test_loss:.4f}, Test  Acc: {test_acc:.2f}% | "
-              f"Best Acc: {best_acc:.2f}% @ epoch {best_epoch}")
+              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
 
-    return best_epoch
+    # 전체 학습 종료 후 '마지막 모델'만 저장
+    final_state = {k: v.cpu() for k, v in model.state_dict().items()}
+    final_path = os.path.join(ckpt_dir, 'final.pth')
+    torch.save(final_state, final_path)
+    print(f"Training complete. Final model saved at {final_path}")
 
-# =========================
-# 최종 예측 저장(동적 임계값 적용)
-# =========================
+
 @torch.no_grad()
-def predict_and_save(model, test_loader, device, save_csv_path):
+def test_model(model, test_loader, device, save_csv_path):
     model.eval()
     all_probs, all_labels = [], []
 
@@ -274,9 +226,8 @@ def predict_and_save(model, test_loader, device, save_csv_path):
 
     all_probs  = torch.cat(all_probs)            # (N,)
     all_labels = torch.cat(all_labels).float()   # (N,)
-    threshold  = all_probs.mean()                # 테스트 평균 확률
 
-    pred_labels = (all_probs > threshold).float().numpy()
+    pred_labels = (all_probs > 0.5).float().numpy()
     df = pd.DataFrame({
         'Actual':   all_labels.numpy(),
         'PredProb': all_probs.numpy(),
@@ -285,7 +236,9 @@ def predict_and_save(model, test_loader, device, save_csv_path):
     os.makedirs(os.path.dirname(save_csv_path), exist_ok=True)
     df.to_csv(save_csv_path, index=False)
 
-# 메인 코드
+# =========================
+# main
+# =========================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Stock prediction model training')
     parser.add_argument('--batch_size', type=int, default=32, help='Batch size for training')
@@ -324,19 +277,16 @@ if __name__ == "__main__":
             criterion = nn.BCEWithLogitsLoss()
             optimizer = torch.optim.RAdam(model.parameters(), lr=1e-4)
 
-            # 경로 통일: ./stock_prediction/...
             base_dir = './stock_prediction'
             ckpt_dir = os.path.join(base_dir, 'saved_model', model_name, label_col, ticker)
             pred_dir = os.path.join(base_dir, 'pred_results', model_name, label_col)
             os.makedirs(ckpt_dir, exist_ok=True)
             os.makedirs(pred_dir, exist_ok=True)
 
-            # 학습 + 매 에포크 평가 + 베스트 저장
-            best_epoch = train_model(model, train_loader, test_loader, criterion, optimizer, args.epochs, device, ckpt_dir)
-            best_ckpt_path = os.path.join(ckpt_dir, 'best.pth')
+            train_model(model, train_loader, test_loader, criterion, optimizer, args.epochs, device, ckpt_dir)
+            final_ckpt_path = os.path.join(ckpt_dir, 'final.pth')
 
-            # 베스트 모델 로드 후 최종 예측 저장(동적 임계값)
             loaded_model = StockPredictor(input_size=len(train_dataset.ta_cols)).to(device)
-            loaded_model.load_state_dict(torch.load(best_ckpt_path, map_location=device))
+            loaded_model.load_state_dict(torch.load(final_ckpt_path, map_location=device))
             save_csv_path = os.path.join(pred_dir, f'{ticker}.csv')
-            predict_and_save(loaded_model, test_loader, device, save_csv_path)
+            test_model(loaded_model, test_loader, device, save_csv_path)

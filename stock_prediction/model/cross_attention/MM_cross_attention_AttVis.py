@@ -18,7 +18,7 @@ import seaborn as sns
 from scipy.ndimage import zoom
 
 # =========================
-# 데이터셋 (원형과 동일 인터페이스)
+# 데이터셋 클래스
 # =========================
 class MultiStockDataset(Dataset):
     def __init__(self, csv_path, img_base_path, transform=None, window_sizes=[5, 20, 60, 120],
@@ -75,9 +75,6 @@ class MultiStockDataset(Dataset):
         label = torch.tensor(self.csv_data[self.label_col].iloc[csv_idx], dtype=torch.float)
         return ta_dict, img_dict, label
 
-# =========================
-# 이미지 전처리 (학습과 동일)
-# =========================
 transform = transforms.Compose([
     transforms.Resize((320, 320)),
     transforms.ToTensor(),
@@ -85,7 +82,7 @@ transform = transforms.Compose([
 ])
 
 # =========================
-# 모델 (원형과 동일 + helper)
+# 모델 클래스
 # =========================
 class StockPredictor(nn.Module):
     def __init__(self, input_size=25, hidden_unit=256, num_layers=4, num_attention_heads=16,
@@ -184,7 +181,7 @@ def vit_attention_rollout(vit_outputs):
     return cls_to_patches
 
 # =========================
-# (2) LSTM 시계열 사후 어텐션 (Q=fc_ts(h_T), K=h_t)
+# (2) LSTM 시계열 사후 어텐션
 # =========================
 @torch.no_grad()
 def compute_temporal_attention_for_window(model: StockPredictor, ta_tensor, window_key: str):
@@ -197,7 +194,7 @@ def compute_temporal_attention_for_window(model: StockPredictor, ta_tensor, wind
     return w  # (T,)
 
 # =========================
-# (3) Feature×Time saliency (grad×input) — cuDNN eval-backward 회피
+# (3) Feature×Time saliency (grad×input)
 # =========================
 def feature_time_saliency_grad(model: StockPredictor, ta_dict, img_dict, device, window_key='20'):
     model.eval()
@@ -300,7 +297,6 @@ def heatmap(matrix, xlabels, ylabels, save_path, title):
     T = len(ylabels)
     tick_pos, tick_lbl = compute_tick_positions(T)
 
-    # 모든 yticklabels를 '' 처리 후 필요한 위치만 채움
     yticks = [''] * T
     for pos, lbl in zip(tick_pos, tick_lbl):
         yticks[pos] = lbl
@@ -420,7 +416,7 @@ def run_for_one(ticker, label_col, args):
     print(f'[OK] {ticker} / {label_col} done.')
 
 # =========================
-# 메인: 모든 종목 × 모든 라벨 반복
+# main
 # =========================
 def main():
     parser = argparse.ArgumentParser(description='Extra attention visualizations for all tickers & labels (no training)')

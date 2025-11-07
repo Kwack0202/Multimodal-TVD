@@ -12,7 +12,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 # =========================
-# Dataset (모달리티 선택적 로딩)
+# 데이터셋 클래스
 # =========================
 class MultiStockDataset(Dataset):
     def __init__(
@@ -24,7 +24,7 @@ class MultiStockDataset(Dataset):
         label_col='Signal_origin',
         mode='train',
         train_end_idx=None,
-        modalities=('ta','img')  # ('ta',), ('img',) 또는 ('ta','img')
+        modalities=('ta','img') 
     ):
         self.csv_data = pd.read_csv(csv_path)
         self.img_base_path = img_base_path
@@ -37,7 +37,6 @@ class MultiStockDataset(Dataset):
         exclude_cols = ['Date', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Signal_origin', 'Signal_trend']
         self.ta_cols = [c for c in self.csv_data.columns if c not in exclude_cols]
 
-        # 전처리
         self.csv_data[self.ta_cols] = self.csv_data[self.ta_cols].fillna(0)
         self.csv_data[self.ta_cols] = self.csv_data[self.ta_cols].replace([np.inf, -np.inf], 0)
         scaler = StandardScaler()
@@ -76,9 +75,6 @@ class MultiStockDataset(Dataset):
         label = torch.tensor(self.csv_data[self.label_col].iloc[csv_idx], dtype=torch.float)
         return ta_dict, img_dict, label
 
-# =========================
-# Transform (ViT 320x320)
-# =========================
 transform = transforms.Compose([
     transforms.Resize((320, 320)),
     transforms.ToTensor(),
@@ -86,7 +82,7 @@ transform = transforms.Compose([
 ])
 
 # =========================
-# Model (TA-only / IMG-only)
+# 모델 클래스
 # =========================
 class StockPredictorAblation(nn.Module):
     def __init__(
@@ -195,7 +191,7 @@ class StockPredictorAblation(nn.Module):
         return name
 
 # =========================
-# Train (간단 버전: 에포크 중간 테스트 없음)
+# Train / Test 
 # =========================
 def train_model(model, train_loader, criterion, optimizer, num_epochs, device):
     model.train()
@@ -223,9 +219,6 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs, device):
         print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
     torch.cuda.empty_cache()
 
-# =========================
-# Test (간단 버전: 0.5 임계값)
-# =========================
 @torch.no_grad()
 def test_model(model, test_loader, criterion, device):
     model.eval()
@@ -254,7 +247,7 @@ def test_model(model, test_loader, criterion, device):
     return results
 
 # =========================
-# Main: TA-only & IMG-only Ablation
+# main
 # =========================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Modality ablation (TA-only / IMG-only)')
@@ -312,20 +305,16 @@ if __name__ == "__main__":
                 criterion = nn.BCEWithLogitsLoss()
                 optimizer = torch.optim.RAdam(model.parameters(), lr=1e-4)
 
-                # 경로: 기존 구조와 동일
                 base_dir = './stock_prediction'
                 ckpt_dir = os.path.join(base_dir, 'saved_model', model_name, label_col, ticker)
                 pred_dir = os.path.join(base_dir, 'pred_results', model_name, label_col)
                 os.makedirs(ckpt_dir, exist_ok=True)
                 os.makedirs(pred_dir, exist_ok=True)
 
-                # 학습 (중간 테스트 없음)
                 train_model(model, train_loader, criterion, optimizer, args.epochs, device)
 
-                # 최종 체크포인트 저장
                 torch.save(model.state_dict(), os.path.join(ckpt_dir, 'final.pth'))
 
-                # 테스트 & CSV 저장 (Actual, Predicted=확률)
                 results = test_model(model, test_loader, criterion, device)
                 results_df = pd.DataFrame(results, columns=['Actual', 'Predicted'])
                 results_df.to_csv(os.path.join(pred_dir, f'{ticker}.csv'), index=False)
