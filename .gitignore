@@ -14,6 +14,7 @@ stock_prediction/**
 stock_prediction/model/backup
 !stock_prediction/model/
 
+code.txt
 basic.ipynb
 
 # C extensions
