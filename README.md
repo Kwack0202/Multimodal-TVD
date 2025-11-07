@@ -47,9 +47,11 @@ python run.py \
     --bt_name BacktestSummary
 ```
 
-## 📊 Multimodal-TVD Execution
-### data
+## 📊 Multimodal-TVD data 
+### Candlestick chart images 
 ![Img sample](./asset/Fig1.png)
+
+### Technical indicators 
 ![Img sample](./asset/Fig2.png)
 
 
@@ -89,7 +91,7 @@ python run.py \
 ## trading plot
 ![Img sample](./asset/Fig13.png)
 
-## XAI (candelstick charts)
+## XAI (Candlestick chart images)
 ![Img sample](./asset/Fig17.png)
 
 ## XAI (Technical indicators)
