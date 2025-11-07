@@ -65,12 +65,12 @@ python run.py \
 
 | Model | Number of trades | Win rate | Payoff ratio | Profit factor | CR (%) | MDD (%) |
 |:------|-----------------:|---------:|--------------:|--------------:|-------:|--------:|
-| **Fusion A** | 79.833 | 0.643 | 0.864 | 1.555 | 54.307 | -30.371 |
+| **Fusion A (ver.1)** | 79.833 | 0.643 | 0.864 | 1.555 | 54.307 | -30.371 |
 | Fusion A (5) | 73.767 | 0.633 | 0.792 | 1.382 | 36.450 | -36.566 |
 | Fusion A (20) | 46.533 | 0.634 | 0.831 | 1.541 | 29.515 | -34.886 |
 | Fusion A (60) | 128.133 | 0.548 | 1.008 | 1.254 | 24.417 | -40.169 |
 | Fusion A (120) | 129.033 | 0.533 | 1.071 | 1.222 | 30.615 | -37.988 |
-| **Fusion B** | 86.033 | 0.626 | 0.914 | 1.576 | 55.754 | -31.305 |
+| **Fusion B (ver.1)** | 86.033 | 0.626 | 0.914 | 1.576 | 55.754 | -31.305 |
 | Fusion B (TI) | 16.033 | 0.734 | 0.889 | 3.136 | 30.475 | -26.238 |
 | Fusion B (IMG) | 81.667 | 0.632 | 0.780 | 1.369 | 42.753 | -37.515 |
 | **Fusion A (ver.2)** | 57.367 | 0.667 | 0.866 | 1.795 | 48.314 | -30.524 |
@@ -83,9 +83,9 @@ python run.py \
 | Fusion B (IMG) | 76.867 | 0.637 | 0.758 | 1.352 | 36.039 | -38.124 |
 | **Buy-and-Hold** | - | 0.517 | 0.978 | 1.052 | 29.356 | -53.420 |
 
-- **Note1**: ↑Up-down labeling, ↓Trend labeling
+- **Note1**: ver.1: Up-down labeling, ver.2: Trend labeling
 - **Note2**: The best results for each indicator by labeling method are highlighted in **bold**
-- **Note3**: Wilcoxon test for pair-wise comparisons between models and benchmarks (*: p<0.05, †: 0.05≤p<0.1, blank: 0.1≤p)
+
 
 
 ## trading plot
