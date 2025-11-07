@@ -81,7 +81,7 @@ python run.py \
 | **Fusion B (ver.2)** | 59.667 | 0.675 | 1.080 | 2.589 | 58.606 | -27.481 |
 | Fusion B (TI) | 15.067 | 0.751 | 0.937 | 3.626 | 31.940 | -22.280 |
 | Fusion B (IMG) | 76.867 | 0.637 | 0.758 | 1.352 | 36.039 | -38.124 |
-| **Buy-and-Hold** | - | 0.517 | 0.978 | 1.052 | 29.356 | -53.420 |
+| **Buy&Hold** | - | 0.517 | 0.978 | 1.052 | 29.356 | -53.420 |
 
 - **Note1**: ver.1: Up-down labeling, ver.2: Trend labeling
 - **Note2**: The best results for each indicator by labeling method are highlighted in **bold**
