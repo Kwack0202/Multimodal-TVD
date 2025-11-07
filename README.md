@@ -81,14 +81,16 @@ python run.py \
 | Fusion B (IMG) | 76.867 | 0.637 | 0.758 | 1.352 | 36.039 | -38.124 |
 | **Buy-and-Hold** | - | 0.517 | 0.978 | 1.052 | 29.356 | -53.420 |
 
-**Note1**: ↑Up-down labeling, ↓Trend labeling
-**Note2**: The best results for each indicator by labeling method are highlighted in **bold**
-**Note3**: Wilcoxon test for pair-wise comparisons between models and benchmarks (*: p<0.05, †: 0.05≤p<0.1, blank: 0.1≤p)
+- **Note1**: ↑Up-down labeling, ↓Trend labeling
+- **Note2**: The best results for each indicator by labeling method are highlighted in **bold**
+- **Note3**: Wilcoxon test for pair-wise comparisons between models and benchmarks (*: p<0.05, †: 0.05≤p<0.1, blank: 0.1≤p)
 
 
 ## trading plot
 ![Img sample](./asset/Fig13.png)
 
-## XAI
+## XAI (candelstick charts)
 ![Img sample](./asset/Fig17.png)
+
+## XAI (Technical indicators)
 ![Img sample](./asset/Fig18.png)
