@@ -193,48 +193,34 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
 
             running_loss += loss.item()
             probs = torch.sigmoid(outputs)
-            preds = (probs > 0.5).float()  # 로깅용
+            preds = (probs > 0.5).float()
             total += labels.size(0)
             correct += (preds == labels).sum().item()
 
         train_loss = running_loss / len(train_loader)
         train_acc = 100.0 * correct / total
+
         print(f"Epoch [{epoch+1}/{num_epochs}] "
               f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
-
-    # 전체 학습 종료 후 '마지막 모델'만 저장
+        
     final_state = {k: v.cpu() for k, v in model.state_dict().items()}
-    final_path = os.path.join(ckpt_dir, 'final.pth')
-    torch.save(final_state, final_path)
-    print(f"Training complete. Final model saved at {final_path}")
+    torch.save(final_state, os.path.join(ckpt_dir, 'final.pth'))
 
+    print(f"Training complete. Final model saved at {os.path.join(ckpt_dir, 'final.pth')}")
 
 @torch.no_grad()
-def test_model(model, test_loader, device, save_csv_path):
+def test_model(model, test_loader, criterion, device):
     model.eval()
-    all_probs, all_labels = [], []
-
+    results = []
     for ta_dict, img_dict, labels in test_loader:
         ta_dict = {k: v.to(device) for k, v in ta_dict.items()}
         img_dict = {k: v.to(device) for k, v in img_dict.items()}
         labels = labels.to(device)
 
         outputs = model(ta_dict, img_dict).squeeze(1)
-        probs = torch.sigmoid(outputs)
-        all_probs.append(probs.detach().cpu())
-        all_labels.append(labels.detach().cpu())
-
-    all_probs  = torch.cat(all_probs)            # (N,)
-    all_labels = torch.cat(all_labels).float()   # (N,)
-
-    pred_labels = (all_probs > 0.5).float().numpy()
-    df = pd.DataFrame({
-        'Actual':   all_labels.numpy(),
-        'PredProb': all_probs.numpy(),
-        'PredLabel': pred_labels
-    })
-    os.makedirs(os.path.dirname(save_csv_path), exist_ok=True)
-    df.to_csv(save_csv_path, index=False)
+        probabilities = torch.sigmoid(outputs)
+        results.extend(zip(labels.cpu().numpy(), probabilities.cpu().numpy()))
+    return results
 
 # =========================
 # main
@@ -288,5 +274,7 @@ if __name__ == "__main__":
 
             loaded_model = StockPredictor(input_size=len(train_dataset.ta_cols)).to(device)
             loaded_model.load_state_dict(torch.load(final_ckpt_path, map_location=device))
-            save_csv_path = os.path.join(pred_dir, f'{ticker}.csv')
-            test_model(loaded_model, test_loader, device, save_csv_path)
+            results = test_model(loaded_model, test_loader, criterion, device)
+
+            results_df = pd.DataFrame(results, columns=['Actual', 'Predicted'])
+            results_df.to_csv(os.path.join(pred_dir, f'{ticker}.csv'), index=False)

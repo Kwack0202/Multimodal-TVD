@@ -84,7 +84,7 @@ transform = transforms.Compose([
 # =========================
 # 모델 클래스
 # =========================
-class StockPredictorAblation(nn.Module):
+class StockPredictor(nn.Module):
     def __init__(
         self,
         windows=[5,20,60,120],
@@ -193,14 +193,17 @@ class StockPredictorAblation(nn.Module):
 # =========================
 # Train / Test 
 # =========================
-def train_model(model, train_loader, criterion, optimizer, num_epochs, device):
-    model.train()
+def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs, device, ckpt_dir):
+    os.makedirs(ckpt_dir, exist_ok=True)
+
     for epoch in tqdm(range(num_epochs)):
+        model.train()
         running_loss, correct, total = 0.0, 0, 0
+
         for ta_dict, img_dict, labels in train_loader:
             ta_dict = {k: v.to(device) for k, v in ta_dict.items()}
             img_dict = {k: v.to(device) for k, v in img_dict.items()}
-            labels  = labels.to(device)
+            labels = labels.to(device)
 
             optimizer.zero_grad()
             outputs = model(ta_dict, img_dict).squeeze(1)
@@ -215,35 +218,28 @@ def train_model(model, train_loader, criterion, optimizer, num_epochs, device):
             correct += (preds == labels).sum().item()
 
         train_loss = running_loss / len(train_loader)
-        train_acc  = 100.0 * correct / total
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
-    torch.cuda.empty_cache()
+        train_acc = 100.0 * correct / total
+
+        print(f"Epoch [{epoch+1}/{num_epochs}] "
+              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
+        
+    final_state = {k: v.cpu() for k, v in model.state_dict().items()}
+    torch.save(final_state, os.path.join(ckpt_dir, 'final.pth'))
+
+    print(f"Training complete. Final model saved at {os.path.join(ckpt_dir, 'final.pth')}")
 
 @torch.no_grad()
 def test_model(model, test_loader, criterion, device):
     model.eval()
-    test_loss, correct, total = 0.0, 0, 0
     results = []
     for ta_dict, img_dict, labels in test_loader:
         ta_dict = {k: v.to(device) for k, v in ta_dict.items()}
         img_dict = {k: v.to(device) for k, v in img_dict.items()}
-        labels  = labels.to(device)
+        labels = labels.to(device)
 
         outputs = model(ta_dict, img_dict).squeeze(1)
-        loss = criterion(outputs, labels)
-        test_loss += loss.item()
-
-        probs = torch.sigmoid(outputs)
-        preds = (probs > 0.5).float()
-        total += labels.size(0)
-        correct += (preds == labels).sum().item()
-
-        results.extend(zip(labels.cpu().numpy(), probs.cpu().numpy()))
-
-    test_loss /= len(test_loader)
-    test_acc = 100.0 * correct / total
-    print(f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_acc:.2f}%")
-    torch.cuda.empty_cache()
+        probabilities = torch.sigmoid(outputs)
+        results.extend(zip(labels.cpu().numpy(), probabilities.cpu().numpy()))
     return results
 
 # =========================
@@ -294,7 +290,7 @@ if __name__ == "__main__":
                 test_loader  = DataLoader(test_dataset,  batch_size=args.batch_size, shuffle=False)
 
                 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                model = StockPredictorAblation(
+                model = StockPredictor(
                     windows=[5,20,60,120],
                     modality_mode=mode,
                     input_size=len(train_dataset.ta_cols)
@@ -311,10 +307,12 @@ if __name__ == "__main__":
                 os.makedirs(ckpt_dir, exist_ok=True)
                 os.makedirs(pred_dir, exist_ok=True)
 
-                train_model(model, train_loader, criterion, optimizer, args.epochs, device)
+                train_model(model, train_loader, test_loader, criterion, optimizer, args.epochs, device, ckpt_dir)
+                final_ckpt_path = os.path.join(ckpt_dir, 'final.pth')
 
-                torch.save(model.state_dict(), os.path.join(ckpt_dir, 'final.pth'))
+                loaded_model = StockPredictor(input_size=len(train_dataset.ta_cols)).to(device)
+                loaded_model.load_state_dict(torch.load(final_ckpt_path, map_location=device))
+                results = test_model(loaded_model, test_loader, criterion, device)
 
-                results = test_model(model, test_loader, criterion, device)
                 results_df = pd.DataFrame(results, columns=['Actual', 'Predicted'])
                 results_df.to_csv(os.path.join(pred_dir, f'{ticker}.csv'), index=False)

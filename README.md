@@ -63,8 +63,8 @@ python run.py \
 - **CR : Cumulative return (%)**
 - **MDD : MaxDrawdown (%)**
 
-| Model | Number of trades | Win rate | Payoff ratio | Profit factor | CR (%) | MDD (%) |
-|:------|-----------------:|---------:|--------------:|--------------:|-------:|--------:|
+| Model | Num of trades | Win rate | PR | PF | CR (%) | MDD (%) |
+|-------|---------------|----------|----|----|--------|---------|
 | **Fusion A (ver.1)** | 79.833 | 0.643 | 0.864 | 1.555 | 54.307 | -30.371 |
 | Fusion A (5) | 73.767 | 0.633 | 0.792 | 1.382 | 36.450 | -36.566 |
 | Fusion A (20) | 46.533 | 0.634 | 0.831 | 1.541 | 29.515 | -34.886 |
@@ -84,7 +84,7 @@ python run.py \
 | **Buy&Hold** | - | 0.517 | 0.978 | 1.052 | 29.356 | -53.420 |
 
 - **Note1**: ver.1: Up-down labeling, ver.2: Trend labeling
-- **Note2**: The best results for each indicator by labeling method are highlighted in **bold**
+- **Note2**: The best results for each metric by labeling method are highlighted in **bold**
 
 
 

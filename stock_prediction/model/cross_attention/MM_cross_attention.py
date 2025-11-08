@@ -213,8 +213,7 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
 
         print(f"Epoch [{epoch+1}/{num_epochs}] "
               f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%")
-
-    # 전체 학습 종료 후 마지막 모델만 저장
+        
     final_state = {k: v.cpu() for k, v in model.state_dict().items()}
     torch.save(final_state, os.path.join(ckpt_dir, 'final.pth'))
 
