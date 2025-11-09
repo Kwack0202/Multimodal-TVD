@@ -1,8 +1,13 @@
 # Multimodal-TVD
 Multimodal learning model for stock trading using technical-visual data
 
+## Abstract
+Stock prediction studies have conventionally relied on single modalities. However, that approach has limitations in fully reflecting the complex patterns of stock price fluctuations and various market factors. To overcome these limitations, this study proposes a multimodal trading system that fuses technical indicators with candlestick chart images and combines long- and short-term subsequences. In experiments conducted on the top 30 NASDAQ stocks by market capitalization, the proposed system improved cumulative returns by up to 99.6% compared to Buy-and-Hold and reduced the maximum drawdown from -53.42% to -27.48%, effectively halving portfolio losses. Furthermore, the system achieved a profit factor of 2.589, representing a 146.2% improvement over the Buy-and-Hold model of 1.052. This highlights the ability of the model to balance stop-loss execution and high win rates for long-term profitability. Ultimately, the proposed trading system achieved consistent outperformance across diverse market conditions and individual stocks while confirming through ablation studies that combining long- and short-term subsequences is essential for both trading performance and risk management. These results demonstrate that the proposed multimodal fusion strategy can serve as a more reliable and practical investment decision support tool than the existing unimodal based predictions.
+
 ## Concept of proposed trading system
-![Concept Diagram](./asset/Fig4.png)
+<p align="center">
+  <img src="./asset/Fig4.png" width="100%">
+</p>
 
 - **Numeric Modal** : Technical indicator (Momentum)
 - **Visual Modal** : Candlestick chart images 
@@ -24,7 +29,7 @@ Multimodal learning model for stock trading using technical-visual data
 - To run the system, the parser arguments must be passed using the `run.py` and `sh files`
 - The `sh file` is divided into subfolders and multiple steps within the ./scripts/ folder.
 
-#### The scripts folder structure is as follows:
+### The scripts folder structure is as follows:
 ```
 ./scripts/
 ├── scripts/
@@ -49,15 +54,19 @@ python run.py \
 
 ## 📊 Multimodal-TVD data 
 ### Candlestick chart images 
-![Img sample](./asset/Fig1.png)
+<p align="center">
+  <img src="./asset/Fig1.png" width="100%">
+</p>
 
 ### Technical indicators 
-![Img sample](./asset/Fig2.png)
+<p align="center">
+  <img src="./asset/Fig2.png" width="100%">
+</p>
 
 
 ## 📈 Backtesting 📉
 
-#### trading metric (mean, std)
+### trading metric (mean, std)
 - **PR : payoff ratio**
 - **PF : profit factor**
 - **CR : Cumulative return (%)**
@@ -87,12 +96,17 @@ python run.py \
 - **Note2**: The best results for each metric by labeling method are highlighted in **bold**
 
 
+### trading plot
+<p align="center">
+  <img src="./asset/Fig13.png" width="100%">
+</p>
 
-## trading plot
-![Img sample](./asset/Fig13.png)
+### XAI (Candlestick chart images)
+<p align="center">
+  <img src="./asset/Fig17.png" width="100%">
+</p>
 
-## XAI (Candlestick chart images)
-![Img sample](./asset/Fig17.png)
-
-## XAI (Technical indicators)
-![Img sample](./asset/Fig18.png)
+### XAI (Technical indicators)
+<p align="center">
+  <img src="./asset/Fig18.png" width="100%">
+</p>
