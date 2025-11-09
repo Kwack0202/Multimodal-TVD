@@ -66,7 +66,7 @@ python run.py \
 
 ## 📈 Backtesting 📉
 
-### trading metric (mean, std)
+### trading metric
 - **PR : payoff ratio**
 - **PF : profit factor**
 - **CR : Cumulative return (%)**
