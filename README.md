@@ -96,7 +96,7 @@ python run.py \
 - **Note2**: The best results for each metric by labeling method are highlighted in **bold**
 
 
-### trading plot
+### Trading plot
 <p align="center">
   <img src="./asset/Fig13.png" width="100%">
 </p>
